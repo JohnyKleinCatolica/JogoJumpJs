@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Jogo JS</title>
+		<script src="Sprite.js"></script>
+		<style>
+			canvas{
+				position: absolute;
+				top: 0px;
+				bottom: 0px;
+				left: 0px;
+				right: 0px;
+				margin: auto;
+			}
+		</style>
+	</head>
+	<body>
+	<script>
+		
+		function main(){
+			ALTURA = window.innerHeight; //Pega altura máxima de tela
+			LARGURA = window.innerWidth; //Pega largura de tela
+			
+			if (LARGURA >= 500){
+				LARGURA = 600;
+				ALTURA = 600;
+			}
+			
+			// Criando Canvas
+			canvas = document.createElement("canvas");
+			canvas.width = LARGURA;
+			canvas.height = ALTURA;
+			canvas.style.border = "1px solid #000";
+			
+			contexto = canvas.getContext("2d");
+			
+			document.body.appendChild(canvas); //add canvas no html
+			document.addEventListener("mousedown",clique);//pega clique
+
+			estadoAtual = estados.jogar; //primeira tela
+
+			img = new Image();
+			img.src = "imagens/sheet.png";
+
+			roda(); //chamando looping de eventos
+						
+		}
+
+		//Variáveis do jogo
+		var canvas, contexto, ALTURA, LARGURA, frames = 0, maxPulos = 3, velocidade = 6, estadoAtual, img;
+
+		var estados = { // Enumeração
+			jogar: 0,
+			jogando: 1,
+			perdeu: 2
+		};
+
+		var chao = { //como se fosse uma classe/objeto
+			y: 530,
+			altura: 70,
+			cor: "#934a29",
+
+			desenha: function(){ //método
+				contexto.fillStyle = this.cor;
+				contexto.fillRect(0, this.y, LARGURA, this.altura);
+			}
+		};
+
+		var bloco = { //personagem do game
+			x: 50,
+			y: 0,
+			altura: 50,
+			largura: 50,
+			cor: "#ffe7ad",
+			gravidade: 0.75,
+			velocidade: 0,
+			forcaDoPulo: 15,
+			qntPulos: 0,
+			score: 0,
+
+			atualiza: function(){
+				this.velocidade += this.gravidade;
+				this.y += this.velocidade;
+
+				if (this.y > (chao.y - this.altura)){
+					this.y = chao.y - this.altura;
+					this.qntPulos = 0; //zera pulos no chão
+				}
+			},
+
+			pula: function(){
+				if (this.qntPulos < maxPulos){
+					this.velocidade = -this.forcaDoPulo; //negativo para ir p/ cima	
+					this.qntPulos++;
+				}
+			},
+
+			
+			reset: function(){
+				bloco.velocidade = 0;
+				bloco.y = 0;
+				this.score = 0;
+			},
+
+			desenha: function(){
+				contexto.fillStyle = this.cor;
+				contexto.fillRect(this.x, this.y, this.largura, this.altura);
+			}
+		};
+
+		var obstaculos = {
+			obsts: [],
+			cores: ["yellow", "red", "green", "blue", "white"],
+			tempoInsere: 0,
+
+			insere: function(){
+				this.obsts.push({
+					x: LARGURA,
+					//largura: 30 + Math.floor(21 * Math.random()),
+					largura: 70,
+					altura: 30 + Math.floor(60 * Math.random()),
+					cor: this.cores[Math.floor(5 * Math.random())]
+				});
+
+				this.tempoInsere = 30 + Math.floor(50 * Math.random());
+			},
+
+			atualiza: function(){
+				if (this.tempoInsere == 0) {
+					this.insere();
+				} else {
+					this.tempoInsere--;
+				}
+
+				for (var i = 0; i < this.obsts.length; i++){
+					var obs = this.obsts[i];
+					var tamanho = this.obsts.length;
+					obs.x -= velocidade;
+
+					if (bloco.x < obs.x + obs.largura && bloco.x + bloco.largura >= obs.x && bloco.y + bloco.altura >= chao.y - obs.altura){
+						estadoAtual = estados.perdeu;
+					}
+
+					else if (obs.x == 0){ //Config Score
+						bloco.score++;
+					}
+
+					else if (obs.x <= -obs.largura){
+						this.obsts.splice(i, 1); //na passada remove elemento do vetor, poupando processamento
+						tamanho--;
+						i--;
+					}
+				}
+			},
+
+			limpa: function() {
+				this.obsts = [];
+			},
+
+			desenha: function(){
+				for (var i = 0; i < this.obsts.length; i++){
+					var obs = this.obsts[i];
+					contexto.fillStyle = obs.cor;
+					contexto.fillRect(obs.x, chao.y - obs.altura, obs.largura, obs.altura);
+				}
+			},
+
+		}
+		
+		function clique(evento) {
+			if (estadoAtual == estados.jogando){
+				bloco.pula();	
+			} else if (estadoAtual == estados.jogar){
+				estadoAtual = estados.jogando;
+			} else {
+				estadoAtual = estados.jogar;
+				obstaculos.limpa(); //zera array
+				bloco.reset();
+			}
+			
+		}
+		
+		function roda(){	//looping do jogo
+			atualiza();
+			desenha();
+ 
+			window.requestAnimationFrame(roda); //Atualiza e desenha
+		}
+		
+		function atualiza(){
+			frames++;
+
+			bloco.atualiza();
+
+			if (estadoAtual == estados.jogando){
+				obstaculos.atualiza();			
+			} 
+		}
+
+		function desenha(){
+			//contexto.fillStyle = "#7ab4b6";
+			//contexto.fillRect(0, 0, LARGURA, ALTURA);
+			bg.desenha(0, 0);  //Desenha BackGround Img
+
+			contexto.fillStyle = "#fff";
+			contexto.font = "50px Arial";
+			contexto.fillText(bloco.score, 30, 66);
+
+			if (estadoAtual == estados.jogar){
+				contexto.fillStyle = "green";
+				contexto.fillRect((LARGURA/2)-50,(ALTURA/2)-50, 100, 100);//Desenha no centro
+			}
+
+			else if (estadoAtual == estados.perdeu){
+				contexto.fillStyle = "red";
+				contexto.fillRect((LARGURA/2)-50,(ALTURA/2)-50, 100, 100);
+//------------------------DesenhaScorePerdeu-----------------
+				contexto.save();
+				contexto.translate(LARGURA/2, ALTURA/2);
+				contexto.fillStyle = "#fff";
+
+				if (bloco.score < 10) {
+					contexto.fillText(bloco.score, -13, 19);
+				} else if (bloco.score < 100) {
+					contexto.fillText(bloco.score, -26, 19);	
+				} else if (bloco.score < 1000) {
+					contexto.fillText(bloco.score, -39, 19);	
+				} else {
+					contexto.fillText('UI', -24, 19);		
+				}
+
+				/* Nem precisava fazer esse monte de if e else na linha 212, era só trocar o -13 por:
+                -ctx.measureText(bloco.score).width/2
+				Pouparia várias linhas de código e alinharia o texto ainda que o usuário marcasse 1000 ou 10000 ou 100000, etc...﻿ */
+
+				contexto.restore(); //restaura contexo default
+//------------------------------------------------------------				
+			}
+
+			else { //só desenha obstcls com jogo em andamento
+				obstaculos.desenha();
+			}
+
+			chao.desenha(); //chama chão com método desenha
+			bloco.desenha();
+
+		}
+		
+		
+		//Inicializa o jogo
+		main();
+	
+	</script>
+	</body>
+</html>
